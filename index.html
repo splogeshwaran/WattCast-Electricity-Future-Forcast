@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WattCast — Electricity Usage Forecasting</title>
+  <meta name="description"
+    content="WattCast electricity usage forecasting for families. Track date, occupants, units and bill amount. Predict next 2 months." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+
+<body>
+
+  <!-- ═══════════════════════════════ LOGIN PAGE ═══════════════════════════════ -->
+  <div id="login-page" class="page active">
+    <div class="login-bg">
+      <div class="login-orb orb1"></div>
+      <div class="login-orb orb2"></div>
+      <div class="login-orb orb3"></div>
+    </div>
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-logo">
+          <div class="logo-icon">⚡</div>
+          <span class="logo-text">WattCast</span>
+        </div>
+        <p class="login-tagline">WattCast electricity forecasting for families</p>
+        <div class="login-tabs">
+          <button class="login-tab active" id="tab-signin" onclick="switchAuthTab('signin')">Sign In</button>
+          <button class="login-tab" id="tab-signup" onclick="switchAuthTab('signup')">Sign Up</button>
+        </div>
+
+        <!-- Sign In Form -->
+        <form id="signin-form" class="auth-form" onsubmit="handleSignIn(event)">
+          <div class="form-group">
+            <label for="signin-email">Email Address</label>
+            <input type="email" id="signin-email" placeholder="you@example.com" required autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <label for="signin-password">Password</label>
+            <div class="input-password-wrap">
+              <input type="password" id="signin-password" placeholder="Enter your password" required
+                autocomplete="current-password" />
+              <button type="button" class="toggle-pw" onclick="togglePw('signin-password', this)">👁</button>
+            </div>
+          </div>
+          <div id="signin-error" class="auth-error hidden"></div>
+          <button type="submit" class="btn-primary full-width" id="signin-btn">
+            <span>Sign In</span>
+            <div class="btn-loader hidden"></div>
+          </button>
+        </form>
+
+        <!-- Sign Up Form -->
+        <form id="signup-form" class="auth-form hidden" onsubmit="handleSignUp(event)">
+          <div class="form-group">
+            <label for="signup-name">Full Name</label>
+            <input type="text" id="signup-name" placeholder="Your name" required autocomplete="name" />
+          </div>
+          <div class="form-group">
+            <label for="signup-email">Email Address</label>
+            <input type="email" id="signup-email" placeholder="you@example.com" required autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <label for="signup-password">Password</label>
+            <div class="input-password-wrap">
+              <input type="password" id="signup-password" placeholder="Min 8 characters" required minlength="8"
+                autocomplete="new-password" />
+              <button type="button" class="toggle-pw" onclick="togglePw('signup-password', this)">👁</button>
+            </div>
+          </div>
+          <div id="signup-error" class="auth-error hidden"></div>
+          <div id="signup-success" class="auth-success hidden"></div>
+          <button type="submit" class="btn-primary full-width" id="signup-btn">
+            <span>Create Account</span>
+            <div class="btn-loader hidden"></div>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ DASHBOARD PAGE ═══════════════════════════════ -->
+  <div id="dashboard-page" class="page">
+
+    <!-- Top Nav -->
+    <nav class="top-nav">
+      <div class="nav-left">
+        <div class="nav-logo">
+          <div class="nav-logo-icon">⚡</div>
+          <div>
+            <div class="nav-logo-name">WattCast</div>
+            <div class="nav-logo-sub">Electricity forecasting for families</div>
+          </div>
+        </div>
+      </div>
+      <div class="nav-right">
+        <div class="nav-user">
+          <div class="user-avatar" id="user-avatar-initials">U</div>
+          <span id="user-display-name">User</span>
+        </div>
+        <button class="btn-ghost danger" onclick="handleLogout()" id="logout-btn">Logout</button>
+      </div>
+    </nav>
+
+    <main class="dashboard-main">
+
+      <!-- Hero Section -->
+      <section class="hero-section">
+        <div class="hero-badge">⚡ WattCast — Smart 2-Month Forecast</div>
+        <h1 class="hero-title">Forecast electricity for <span class="hero-accent">every family</span></h1>
+        <p class="hero-sub">Track date, occupants, units and bill amount. Add multiple families, upload datasets, and
+          see the next two months projected ellectricity usage.</p>
+      </section>
+
+      <!-- Family Switcher -->
+      <section class="family-section card">
+        <div class="section-header">
+          <span class="section-icon">👨‍👩‍👧</span>
+          <div>
+            <div class="section-title">Families</div>
+            <div class="section-sub">Switch between datasets or add a new family.</div>
+          </div>
+        </div>
+        <div class="family-tabs" id="family-tabs"></div>
+        <div class="family-add-row">
+          <input type="text" id="new-family-name" placeholder="New family name (e.g. Kumar Family)"
+            class="family-input" />
+          <button class="btn-primary" onclick="addFamily()" id="add-family-btn">+ Add family</button>
+        </div>
+        <!-- Edit family name modal -->
+        <div id="edit-family-modal" class="modal-overlay hidden" onclick="closeEditFamilyModal(event)">
+          <div class="modal-box">
+            <div class="modal-title">✏️ Rename Family</div>
+            <input type="text" id="edit-family-input" class="family-input full-width" placeholder="New name" />
+            <div class="modal-actions">
+              <button class="btn-ghost" onclick="closeEditFamilyModal()">Cancel</button>
+              <button class="btn-primary" onclick="confirmEditFamily()">Save</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card highlight">
+          <div class="stat-label">Total units</div>
+          <div class="stat-value" id="stat-total-units">0 kWh</div>
+        </div>
+        <div class="stat-card highlight">
+          <div class="stat-label">Total bill</div>
+          <div class="stat-value" id="stat-total-bill">₹0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Next 2 mo (units)</div>
+          <div class="stat-value highlight" id="stat-forecast-units">— kWh</div>
+          <div class="stat-sub" style="font-size:11px; opacity:0.8; margin-top: 4px;">*Prediction, not exact</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Bi monthly</div>
+          <div class="stat-value" id="stat-vs-avg">—</div>
+          <div class="stat-sub" id="stat-vs-avg-sub"></div>
+        </div>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="tab-nav">
+        <button class="tab-btn active" id="tab-forecast" onclick="switchTab('forecast')">Forecast</button>
+        <button class="tab-btn" id="tab-dataset" onclick="switchTab('dataset')">Dataset</button>
+        <button class="tab-btn" id="tab-upload" onclick="switchTab('upload')">Add / Upload Data</button>
+        <button class="tab-btn" id="tab-calculator" onclick="switchTab('calculator')">Calculator</button>
+      </div>
+
+      <!-- ─── FORECAST TAB ─── -->
+      <div id="panel-forecast" class="tab-panel active">
+
+        <!-- Empty state (shown when no data) -->
+        <div id="forecast-empty-state" class="panel-empty-state hidden">
+          <div class="panel-empty-icon">⚡</div>
+          <div class="panel-empty-title">No data to forecast</div>
+          <div class="panel-empty-sub">upload data to see result</div>
+          <button class="btn-cta-upload" onclick="switchTab('upload')" id="forecast-cta-btn">
+            ⬆️ Add or Upload Data
+          </button>
+        </div>
+
+        <!-- Forecast chart (shown when data exists) -->
+        <div id="forecast-content">
+          <div class="card chart-card">
+            <div class="chart-header">
+              <span class="chart-icon">📈</span>
+              <div>
+                <div class="chart-title">Usage history of 12 months &amp; 2-month forecast</div>
+                <div class="chart-sub">Solid = actual &nbsp;·&nbsp; Dashed = predicted &nbsp;·&nbsp; <span
+                    style="color:var(--brand-gold); font-weight:500;">*Prediction, not exact</span></div>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="forecast-chart"></canvas>
+              <div id="forecast-chart-empty" class="chart-empty-state hidden">upload data to see result</div>
+            </div>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="legend-dot blue"></span> Units (actual)</span>
+              <span class="legend-item"><span class="legend-dot yellow"></span> Units (predicted)</span>
+            </div>
+          </div>
+
+          <div class="comparison-grid" id="comparison-grid"></div>
+        </div>
+      </div>
+
+      <!-- ─── DATASET TAB ─── -->
+      <div id="panel-dataset" class="tab-panel">
+
+        <!-- Better results tip -->
+        <div class="data-tip-banner">
+          <span class="data-tip-icon">💡</span>
+          <span><strong>Tip:</strong> The more records you upload, the more accurate the forecast will be. More months
+            of data helps the model detect patterns accurately.</span>
+        </div>
+
+        <!-- Empty state (shown when no data) -->
+        <div id="dataset-empty-state" class="panel-empty-state hidden">
+          <div class="panel-empty-icon">📂</div>
+          <div class="panel-empty-title">No records yet</div>
+          <div class="panel-empty-sub">upload data to see result</div>
+          <button class="btn-cta-upload" onclick="switchTab('upload')" id="dataset-cta-btn">
+            ⬆️ Add or Upload Data
+          </button>
+        </div>
+
+        <!-- Dataset table (shown when data exists) -->
+        <div id="dataset-content" class="card">
+          <div class="dataset-header">
+            <div>
+              <div class="dataset-title" id="dataset-title">Dataset</div>
+              <div class="dataset-meta" id="dataset-meta">0 rows · date · occupants · units · bill_amount</div>
+            </div>
+            <div class="dataset-actions">
+              <button class="btn-ghost small" onclick="exportCSV()" id="export-csv-btn">⬇ Export CSV</button>
+              <button class="btn-ghost small danger" onclick="clearDataset()" id="clear-dataset-btn">🗑 Clear</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Occupants</th>
+                  <th class="col-blue">Units (kWh)</th>
+                  <th class="col-blue">Bill (₹)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="data-table-body">
+                <tr class="empty-row">
+                  <td colspan="5">upload data to see result</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── ADD / UPLOAD TAB ─── -->
+      <div id="panel-upload" class="tab-panel">
+        <!-- Better results tip -->
+        <div class="data-tip-banner">
+          <span class="data-tip-icon">💡</span>
+          <span><strong>Tip:</strong> Upload more records for better forecast results. More months of data helps the
+            model detect patterns accurately.</span>
+        </div>
+        <div class="upload-grid">
+          <!-- Manual Entry -->
+          <div class="card">
+            <div class="upload-card-title">✏️ Add a reading</div>
+            <div class="upload-card-sub">
+              Manually enter one monthly record.<br>
+            </div>
+            <form onsubmit="addManualRecord(event)" id="manual-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="rec-date">Date</label>
+                  <input type="text" id="rec-date" placeholder="DD/MM/YYYY or Sep 2025" required />
+                </div>
+                <div class="form-group">
+                  <label for="rec-occupants">Occupants</label>
+                  <input type="number" id="rec-occupants" placeholder="4" min="1" required />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="rec-units">Units (kWh)</label>
+                  <input type="number" id="rec-units" placeholder="320" min="0" step="0.01" required />
+                </div>
+                <div class="form-group">
+                  <label for="rec-bill">Bill Amount (₹)</label>
+                  <input type="number" id="rec-bill" placeholder="2720" min="0" step="0.01" required />
+                </div>
+              </div>
+              <button type="submit" class="btn-primary full-width" id="add-reading-btn">+ Add reading</button>
+            </form>
+          </div>
+
+          <!-- File Upload -->
+          <div class="card">
+            <div class="upload-card-title">📂 Upload dataset</div>
+            <div class="upload-card-sub">
+              Required columns: <code>date, occupants, units, bill_amount</code><br />
+              Accepts: <strong>.csv &nbsp;·&nbsp; .xls &nbsp;·&nbsp; .xlsx</strong><br />
+              <span style="font-size:11px; color:var(--text-muted);">Dates accepted: dd/mm/yyyy, mm/dd/yyyy, YYYY-MM,
+                Mon YYYY</span>
+            </div>
+            <div class="dropzone" id="dropzone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
+              ondrop="onDrop(event)" onclick="document.getElementById('file-input').click()">
+              <div class="dropzone-icon">⬆️</div>
+              <div class="dropzone-text">Click to upload or drag &amp; drop</div>
+              <div class="dropzone-hint">CSV, XLS or XLSX · Replaces this family's dataset</div>
+              <input type="file" id="file-input" accept=".csv,.xls,.xlsx" style="display:none"
+                onchange="handleFileInput(event)" />
+            </div>
+            <div id="upload-status" class="upload-status hidden"></div>
+            <button class="btn-ghost small full-width mt-8" onclick="downloadTemplate()" id="download-template-btn">⬇
+              Download template CSV</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── CALCULATOR TAB ─── -->
+      <div id="panel-calculator" class="tab-panel">
+        <!-- Hero -->
+        <section class="hero-section" style="padding-bottom:0;">
+          <div class="hero-badge">🧮 TN Electricity — Bi-Monthly Bill Estimator</div>
+          <h1 class="hero-title">Calculate your <span class="hero-accent">electricity bill</span></h1>
+          <p class="hero-sub">Enter your bi-monthly units consumed and instantly see your Tamil Nadu Electricity Board
+            bill.</p>
+        </section>
+
+        <div class="calc-page-layout" style="margin-top: 24px;">
+
+          <!-- Input Card -->
+          <div class="card calculator-input-card">
+            <div class="chart-header" style="margin-bottom:20px;">
+              <span class="chart-icon">🧮</span>
+              <div>
+                <div class="chart-title">Tamil Nadu Bi-Monthly Bill Calculator</div>
+                <div class="chart-sub">Enter total bi-monthly units consumed to estimate your electricity bill</div>
+              </div>
+            </div>
+
+            <form onsubmit="calculateManualBill(event)" id="calc-form">
+              <div class="form-group" style="margin-bottom:16px;">
+                <label for="calc-units">Bi-monthly Units Consumed (kWh)</label>
+                <input type="number" id="calc-units" placeholder="e.g. 500" min="0" step="0.01"
+                  style="font-size:18px; padding:14px 16px;" required />
+              </div>
+              <button type="submit" class="btn-primary full-width" id="calc-bill-btn"
+                style="padding:14px; font-size:15px;">⚡ Calculate Bill</button>
+            </form>
+
+            <!-- Result Box -->
+            <div id="calc-result" class="calc-result-box hidden">
+              <div class="calc-result-inner">
+                <div class="calc-result-label">Estimated Bi-Monthly Bill</div>
+                <div class="calc-result-value" id="calc-bill-val">₹0</div>
+                <div class="calc-result-sub" id="calc-bill-sub">for 0 kWh consumed</div>
+              </div>
+            </div>
+
+            <!-- Breakdown Table (shown after calculation) -->
+            <div id="calc-breakdown" class="calc-breakdown-box hidden">
+              <div class="calc-breakdown-title">Bill Breakdown</div>
+              <table class="slab-table" id="calc-breakdown-table">
+                <thead>
+                  <tr>
+                    <th>Slab</th>
+                    <th>Units</th>
+                    <th>Rate</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+                <tbody id="calc-breakdown-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Slab Reference Card -->
+          <div class="card calculator-slab-card">
+            <div class="chart-header" style="margin-bottom:16px;">
+              <span class="chart-icon">📋</span>
+              <div>
+                <div class="chart-title">TN Slab Rate Reference</div>
+                <div class="chart-sub">Tamil Nadu Electricity Board — Bi-Monthly Slabs</div>
+              </div>
+            </div>
+
+            <div class="slab-section">
+              <div class="slab-section-title">For consumption ≤ 500 units</div>
+              <table class="slab-table">
+                <thead>
+                  <tr>
+                    <th>Units Range</th>
+                    <th>Rate (₹/unit)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1 – 200</td>
+                    <td class="slab-free">Free</td>
+                  </tr>
+                  <tr>
+                    <td>201 – 400</td>
+                    <td>₹4.70</td>
+                  </tr>
+                  <tr>
+                    <td>401 – 500</td>
+                    <td>₹6.30</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="slab-section" style="margin-top:16px;">
+              <div class="slab-section-title">For consumption &gt; 500 units</div>
+              <table class="slab-table">
+                <thead>
+                  <tr>
+                    <th>Units Range</th>
+                    <th>Rate (₹/unit)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1 – 100</td>
+                    <td class="slab-free">Free</td>
+                  </tr>
+                  <tr>
+                    <td>101 – 400</td>
+                    <td>₹4.70</td>
+                  </tr>
+                  <tr>
+                    <td>401 – 500</td>
+                    <td>₹6.30</td>
+                  </tr>
+                  <tr>
+                    <td>501 – 600</td>
+                    <td>₹8.40</td>
+                  </tr>
+                  <tr>
+                    <td>601 – 800</td>
+                    <td>₹9.45</td>
+                  </tr>
+                  <tr>
+                    <td>801 – 1000</td>
+                    <td>₹10.50</td>
+                  </tr>
+                  <tr>
+                    <td>Above 1000</td>
+                    <td>₹11.55</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Info box -->
+            <div class="calc-info-box">
+              <div class="calc-info-text">ℹ️ First 200 units are <strong>free</strong> for consumers who consusme
+                <strong>&lt = 500 units</strong>. Slabs above 500
+                units use a different rate structure than slabs below 500.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+
+    <footer class="app-footer">
+      Buid With Love ❤️ and Care 🤍
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
